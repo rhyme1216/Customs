@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动化报关系统</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+        <div class="menu-item">
+            <div class="menu-title" onclick="toggleSubmenu('customs-management')">
+                <span>关务管理</span>
+                <span class="arrow" id="arrow-customs-management">▼</span>
+            </div>
+            <div class="submenu" id="customs-management">
+                <div class="submenu-item" onclick="showDeclarationsGoodsList()">报关商品列表</div>
+                <div class="submenu-item" onclick="showDeclarationManagement()">报关单管理</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="main-content">
+        <!-- 首页内容 -->
+        <div id="home-page" class="page-content active">
+            <h1>欢迎使用自动化报关系统</h1>
+            <p>请从左侧菜单选择功能模块</p>
+        </div>
+
+        <!-- 报关商品列表页面 -->
+        <div id="declarations-goods-page" class="page-content">
+            <!-- 面包屑导航 -->
+            <div class="breadcrumb">
+                <span>关务管理</span>
+                <span class="separator">-</span>
+                <span>报关商品列表</span>
+            </div>
+
+            <!-- 查询条件 -->
+            <div class="search-form">
+                <div class="form-row">
+                    <div class="form-item">
+                        <label>国内SKUID</label>
+                        <textarea id="domestic-sku" placeholder="请输入国内SKUID，多个用换行分隔"></textarea>
+                    </div>
+                    <div class="form-item">
+                        <label>国际SKUID</label>
+                        <textarea id="international-sku" placeholder="请输入国际SKUID，多个用换行分隔"></textarea>
+                    </div>
+                    <div class="form-item">
+                        <label>HSCODE</label>
+                        <input type="text" id="hscode" placeholder="请输入HSCODE">
+                    </div>
+                    <div class="form-item">
+                        <label>目的国</label>
+                        <select id="destination-country">
+                            <option value="">请选择目的国</option>
+                            <option value="泰国">泰国</option>
+                            <option value="越南">越南</option>
+                            <option value="马来">马来</option>
+                            <option value="匈牙利">匈牙利</option>
+                            <option value="巴西">巴西</option>
+                            <option value="印尼">印尼</option>
+                            <option value="香港">香港</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-item">
+                        <label>商品评估状态</label>
+                        <select id="assessment-status">
+                            <option value="">请选择评估状态</option>
+                            <option value="待评估">待评估</option>
+                            <option value="待确认">待确认</option>
+                            <option value="已确认">已确认</option>
+                        </select>
+                    </div>
+                    <div class="form-item">
+                        <label>最后更新人ERP</label>
+                        <input type="text" id="last-updater" placeholder="请输入最后更新人ERP">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 查询按钮 -->
+            <div class="button-row">
+                <button class="btn btn-secondary" onclick="resetForm()">重置</button>
+                <button class="btn btn-primary" onclick="searchData()">查询</button>
+            </div>
+
+            <!-- 批量操作按钮 -->
+            <div class="batch-buttons">
+                <button class="btn btn-info" onclick="importData()">导入</button>
+                <button class="btn btn-info" onclick="exportData()">导出</button>
+            </div>
+
+            <!-- 数据表格 -->
+            <div class="table-container">
+                <table id="goods-table">
+                    <thead>
+                        <tr>
+                            <th class="fixed-column">
+                                <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                            </th>
+                            <th class="fixed-column">国际SKU</th>
+                            <th>国内SKU</th>
+                            <th>HSCODE</th>
+                            <th>商品中文标题</th>
+                            <th>目的国</th>
+                            <th>申报要素</th>
+                            <th>中文申报品名</th>
+                            <th>英文申报品名</th>
+                            <th>生产企业代码</th>
+                            <th>生产企业中文名</th>
+                            <th>生产企业英文名</th>
+                            <th>生产企业中文地址</th>
+                            <th>生产企业英文地址</th>
+                            <th>联系人</th>
+                            <th>联系人电话</th>
+                            <th>
+                                报关净重
+                                <span class="tooltip-icon" title="默认取商品毛重（KG）">
+                                    <span class="question-mark">?</span>
+                                </span>
+                            </th>
+                            <th>商品品牌</th>
+                            <th>商品规格</th>
+                            <th>
+                                成交单位
+                                <span class="tooltip-icon" title="默认取商品销售单位">
+                                    <span class="question-mark">?</span>
+                                </span>
+                            </th>
+                            <th>商品评估状态</th>
+                            <th>最后更新人</th>
+                            <th>更新时间</th>
+                            <th class="fixed-column-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="goods-tbody">
+                        <!-- 数据行将通过JavaScript动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            <div class="pagination">
+                <div class="pagination-info">
+                    <span>每页显示：</span>
+                    <select id="page-size" onchange="changePageSize()">
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span>条，共 <span id="total-count">0</span> 条</span>
+                </div>
+                <div class="pagination-controls">
+                    <button class="btn btn-sm" onclick="goToPage(1)">首页</button>
+                    <button class="btn btn-sm" onclick="goToPage(currentPage - 1)">上一页</button>
+                    <span>第 <span id="current-page">1</span> 页，共 <span id="total-pages">1</span> 页</span>
+                    <button class="btn btn-sm" onclick="goToPage(currentPage + 1)">下一页</button>
+                    <button class="btn btn-sm" onclick="goToPage(totalPages)">尾页</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 报关单管理页面 -->
+        <div id="declaration-management-page" class="page-content">
+            <div class="breadcrumb">
+                <span>关务管理</span>
+                <span class="separator">-</span>
+                <span>报关单管理</span>
+            </div>
+            <h2>报关单管理功能开发中...</h2>
+        </div>
+    </div>
+
+    <!-- 申报要素编辑弹窗 -->
+    <div id="declaration-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>申报要素规范编辑</h3>
+                <span class="modal-close" onclick="closeDeclarationModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- 商品信息显示 -->
+                <div class="goods-info">
+                    <div class="info-row">
+                        <span class="info-label">国际SKU：</span>
+                        <span id="modal-international-sku"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">HSCODE：</span>
+                        <span id="modal-hscode"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">商品标题：</span>
+                        <span id="modal-goods-title"></span>
+                    </div>
+                </div>
+
+                <!-- 申报要素表单 -->
+                <div class="declaration-form">
+                    <h4>申报要素信息</h4>
+                    
+                    <!-- 固定前两项 -->
+                    <div class="form-section">
+                        <h5>固定必填项</h5>
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label class="required">品牌类型 <span class="required-star">*</span></label>
+                                <select id="brand-type" required>
+                                    <option value="">请选择品牌类型</option>
+                                    <option value="0">0 - 无品牌</option>
+                                    <option value="1">1 - 境内自主品牌</option>
+                                    <option value="2">2 - 境内收购品牌</option>
+                                    <option value="3">3 - 境外品牌(贴牌生产)</option>
+                                    <option value="4">4 - 境外品牌(其他)</option>
+                                </select>
+                            </div>
+                            <div class="form-item">
+                                <label class="required">享惠情况 <span class="required-star">*</span></label>
+                                <select id="preferential-status" required>
+                                    <option value="">请选择享惠情况</option>
+                                    <option value="0">0 - 出口货物在最终目的国(地区)不享受优惠关税</option>
+                                    <option value="1">1 - 出口货物在最终目的国(地区)享受优惠关税</option>
+                                    <option value="2">2 - 出口货物不能确定在最终目的国(地区)享受优惠关税</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 动态申报要素项 -->
+                    <div class="form-section">
+                        <h5>HSCODE配置项</h5>
+                        <div id="dynamic-declaration-items">
+                            <!-- 根据HSCODE动态生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 固定后三项 -->
+                    <div class="form-section">
+                        <h5>固定非必填项</h5>
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label>GTIN</label>
+                                <input type="text" id="gtin" placeholder="请输入GTIN">
+                            </div>
+                            <div class="form-item">
+                                <label>CAS</label>
+                                <input type="text" id="cas" placeholder="请输入CAS">
+                            </div>
+                            <div class="form-item">
+                                <label>其他</label>
+                                <input type="text" id="other-info" placeholder="请输入其他信息">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 目的国和授权选择 -->
+                    <div class="form-section">
+                        <h5>适用范围</h5>
+                        <div class="form-row">
+                            <div class="form-item full-width">
+                                <label class="required">本次编辑的目的国 <span class="required-star">*</span></label>
+                                <div class="checkbox-group" id="destination-countries">
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" value="泰国">
+                                        <span>泰国</span>
+                                    </label>
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" value="越南">
+                                        <span>越南</span>
+                                    </label>
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" value="马来">
+                                        <span>马来</span>
+                                    </label>
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" value="匈牙利">
+                                        <span>匈牙利</span>
+                                    </label>
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" value="巴西">
+                                        <span>巴西</span>
+                                    </label>
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" value="印尼">
+                                        <span>印尼</span>
+                                    </label>
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" value="香港">
+                                        <span>香港</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="export-authorization">
+                                    <span>出口授权</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 预览区域 -->
+                <div class="preview-section">
+                    <h4>申报要素预览</h4>
+                    <div class="preview-content" id="declaration-preview">
+                        <!-- 实时预览拼接结果 -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDeclarationModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveDeclarationElements()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遮罩层 -->
+    <div id="modal-overlay" class="modal-overlay"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
