@@ -335,9 +335,11 @@ function getHSCodeConfig(hscode) {
         '0987654321': {
             items: [
                 { key: '材质', name: '材质', type: 'text', required: true },
-                { key: '功能', name: '功能', type: 'select', required: true },
+                { key: '功能', name: '功能', type: 'select', required: true 
+
+                },
                 { key: '品牌名称', name: '品牌名称', type: 'text', required: true },
-                { key: '规格', name: '规格', type: 'text', required: false }
+                { key: '规格', name: '规格', type: 'text', required: true }
             ]
         }
     };
@@ -348,7 +350,7 @@ function getHSCodeConfig(hscode) {
             { key: '用途', name: '用途', type: 'text', required: true },
             { key: '材质', name: '材质', type: 'text', required: true },
             { key: '品牌名称', name: '品牌名称', type: 'text', required: true },
-            { key: '型号', name: '型号', type: 'text', required: false }
+            { key: '型号', name: '型号', type: 'text', required: true }
         ]
     };
 }
@@ -619,7 +621,7 @@ function initSampleData() {
             hscode: '1234567890',
             chineseTitle: '示例商品1',
             destinationCountry: '泰国',
-            declarationElements: '品牌:示例品牌;规格:10*20cm',
+            declarationElements: '-',
             chineseName: '中文申报品名1',
             englishName: 'Declaration Name 1',
             companyCode: generateCompanyCode(1),
@@ -644,7 +646,7 @@ function initSampleData() {
             hscode: '0987654321',
             chineseTitle: '示例商品2',
             destinationCountry: '越南',
-            declarationElements: '品牌:示例品牌2;规格:15*25cm',
+            declarationElements: '-',
             chineseName: '中文申报品名2',
             englishName: 'Declaration Name 2',
             companyCode: generateCompanyCode(2),
@@ -659,7 +661,7 @@ function initSampleData() {
             specification: '15*25cm',
             unit: '套',
             assessmentStatus: '待确认',
-            lastUpdater: 'lizimeng17',
+            lastUpdater: 'system',
             updateTime: '2023-12-01 11:15:00'
         }
     ];
@@ -673,7 +675,7 @@ function initSampleData() {
             hscode: `${1000000000 + i}`,
             chineseTitle: `示例商品${i}`,
             destinationCountry: ['泰国', '越南', '马来', '匈牙利', '巴西', '印尼', '香港'][i % 7],
-            declarationElements: `品牌:示例品牌${i};规格:${10 + i}*${20 + i}cm`,
+            declarationElements: '-',
             chineseName: `中文申报品名${i}`,
             englishName: `Declaration Name ${i}`,
             companyCode: generateCompanyCode(i),
@@ -688,7 +690,7 @@ function initSampleData() {
             specification: `${10 + i}*${20 + i}cm`,
             unit: ['个', '套', '件', '盒'][i % 4],
             assessmentStatus: ['待评估', '待确认', '已确认'][i % 3],
-            lastUpdater: `lizimeng17`,
+            lastUpdater: `system`,
             updateTime: `2023-12-${String((i % 28) + 1).padStart(2, '0')} ${String((i % 24)).padStart(2, '0')}:${String((i % 60)).padStart(2, '0')}:00`
         });
     }
