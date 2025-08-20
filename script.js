@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', function() {
     showHomePage();
     // 初始化自定义提示框
     initCustomTooltips();
+    // 初始化模态窗口事件监听器
+    initModalEventListeners();
 });
 
 // 初始化自定义提示框
@@ -120,6 +122,13 @@ function showHomePage() {
     clearActiveSubmenuItems();
 }
 
+// 显示商品关务评估列表页面
+function showGoodsAssessmentList() {
+    hideAllPages();
+    document.getElementById('goods-assessment-page').classList.add('active');
+    setActiveSubmenuItem(event.target);
+}
+
 // 显示报关商品列表页面
 function showDeclarationsGoodsList() {
     hideAllPages();
@@ -158,8 +167,8 @@ function resetForm() {
     document.getElementById('domestic-sku').value = '';
     document.getElementById('international-sku').value = '';
     document.getElementById('hscode').value = '';
-    document.getElementById('destination-country').value = '';
-    document.getElementById('assessment-status').value = '';
+    document.getElementById('declaration-status').value = '';
+    document.getElementById('order-status').value = '';
     document.getElementById('last-updater').value = '';
 }
 
@@ -169,8 +178,8 @@ function searchData() {
         domesticSku: document.getElementById('domestic-sku').value,
         internationalSku: document.getElementById('international-sku').value,
         hscode: document.getElementById('hscode').value,
-        destinationCountry: document.getElementById('destination-country').value,
-        assessmentStatus: document.getElementById('assessment-status').value,
+        declarationStatus: document.getElementById('declaration-status').value,
+        orderStatus: document.getElementById('order-status').value,
         lastUpdater: document.getElementById('last-updater').value
     };
     
@@ -199,45 +208,115 @@ function toggleSelectAll() {
     });
 }
 
-// 编辑申报要素
+// 编辑关务信息
 function editDeclarationElements(id) {
-    const item = currentData.find(data => data.id === id);
-    if (!item) return;
+    console.log('开始编辑关务信息，ID:', id);
+    console.log('当前数据长度:', currentData.length);
+    console.log('当前数据:', currentData);
     
+    if (!currentData || currentData.length === 0) {
+        console.error('当前数据为空，重新初始化数据');
+        initSampleData();
+    }
+    
+    const item = currentData.find(data => data.id === id);
+    if (!item) {
+        console.error('找不到对应的商品数据，ID:', id);
+        console.error('可用的ID列表:', currentData.map(d => d.id));
+        return;
+    }
+    
+    console.log('找到商品数据:', item);
     // 显示弹窗
     showDeclarationModal(item);
 }
 
-// 显示申报要素编辑弹窗
-function showDeclarationModal(item) {
-    // 填充商品基本信息
-    document.getElementById('modal-international-sku').textContent = item.internationalSku;
-    document.getElementById('modal-hscode').textContent = item.hscode;
-    document.getElementById('modal-goods-title').textContent = item.chineseTitle;
+// 确认关务信息
+function confirmDeclarationElements(id) {
+    console.log('确认关务信息，ID:', id);
     
-    // 清空表单
-    resetDeclarationForm();
-    
-    // 根据HSCODE生成动态申报要素项
-    generateDeclarationItems(item.hscode);
-    
-    // 如果已有申报要素数据，填充表单
-    if (item.declarationElements) {
-        populateDeclarationForm(item.declarationElements);
+    const item = currentData.find(data => data.id === id);
+    if (!item) {
+        console.error('找不到对应的商品数据，ID:', id);
+        return;
     }
     
-    // 设置当前编辑的商品ID
-    window.currentEditingItemId = item.id;
+    // 检查是否已有申报要素
+    if (!item.declarationElements || item.declarationElements === '-') {
+        alert('该商品尚未填写申报要素，请先编辑关务信息');
+        return;
+    }
     
-    // 显示弹窗
-    document.getElementById('modal-overlay').classList.add('active');
-    document.getElementById('declaration-modal').classList.add('active');
+    // 确认对话框
+    if (confirm('确认该商品的关务信息吗？确认后状态将变为"已确认"。')) {
+        // 更新状态为已确认
+        const itemIndex = currentData.findIndex(data => data.id === id);
+        if (itemIndex !== -1) {
+            currentData[itemIndex].declarationElementsStatus = 'confirmed';
+            currentData[itemIndex].lastUpdater = 'current_user';
+            currentData[itemIndex].updateTime = new Date().toLocaleString('zh-CN');
+        }
+        
+        // 刷新表格
+        loadGoodsData();
+        
+        alert('关务信息确认成功');
+    }
+}
+
+// 显示申报要素编辑弹窗
+function showDeclarationModal(item) {
+    console.log('显示申报要素编辑弹窗，商品:', item);
     
-    // 更新预览
-    updateDeclarationPreview();
-    
-    // 添加实时更新预览的事件监听器
-    addPreviewUpdateListeners();
+    try {
+        // 填充商品基本信息
+        document.getElementById('modal-international-sku').textContent = item.internationalSku;
+        document.getElementById('modal-hscode').textContent = item.hscode;
+        document.getElementById('modal-goods-title').textContent = item.chineseTitle;
+        document.getElementById('modal-goods-brand').textContent = item.brand;
+        document.getElementById('modal-brand-auth-type').textContent = item.brandAuthType;
+        document.getElementById('modal-goods-specification').textContent = item.specification;
+        document.getElementById('modal-extend-attr1').textContent = item.extendAttr1;
+        document.getElementById('modal-extend-attr2').textContent = item.extendAttr2;
+        
+        console.log('基本信息填充完成');
+        
+        // 清空表单
+        resetDeclarationForm();
+        console.log('表单重置完成');
+        
+        // 设置申报品中文名默认值（使用商品的中文申报品名）
+        document.getElementById('declaration-chinese-name').value = item.chineseName || item.chineseTitle;
+        
+        // 根据HSCODE生成动态申报要素项
+        generateDeclarationItems(item.hscode);
+        console.log('动态申报要素项生成完成');
+        
+        // 如果已有申报要素数据，填充表单
+        if (item.declarationElements && item.declarationElements !== '-') {
+            populateDeclarationForm(item.declarationElements);
+            console.log('表单数据填充完成');
+        }
+        
+        // 设置当前编辑的商品ID
+        window.currentEditingItemId = item.id;
+        
+        // 显示弹窗
+        document.getElementById('modal-overlay').classList.add('active');
+        document.getElementById('declaration-modal').classList.add('active');
+        console.log('弹窗显示完成');
+        
+        // 更新预览
+        updateDeclarationPreview();
+        console.log('预览更新完成');
+        
+        // 添加实时更新预览的事件监听器
+        addPreviewUpdateListeners();
+        console.log('事件监听器添加完成');
+        
+    } catch (error) {
+        console.error('显示申报要素弹窗时发生错误:', error);
+    }
 }
 
 // 关闭申报要素编辑弹窗
@@ -247,20 +326,41 @@ function closeDeclarationModal() {
     window.currentEditingItemId = null;
 }
 
+// 初始化模态窗口事件监听器
+function initModalEventListeners() {
+    // 点击蒙版关闭模态窗口
+    const modalOverlay = document.getElementById('modal-overlay');
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeclarationModal();
+            }
+        });
+    }
+    
+    // 阻止模态窗口内容区域的点击事件冒泡到蒙版
+    const modalContent = document.querySelector('.modal-content');
+    if (modalContent) {
+        modalContent.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+    
+    // ESC键关闭模态窗口
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.getElementById('declaration-modal').classList.contains('active')) {
+            closeDeclarationModal();
+        }
+    });
+}
+
 // 重置申报要素表单
 function resetDeclarationForm() {
+    document.getElementById('declaration-chinese-name').value = '';
     document.getElementById('brand-type').value = '';
-    document.getElementById('preferential-status').value = '';
     document.getElementById('gtin').value = '';
     document.getElementById('cas').value = '';
     document.getElementById('other-info').value = '';
-    
-    // 清空目的国选择
-    const checkboxes = document.querySelectorAll('#destination-countries input[type="checkbox"]');
-    checkboxes.forEach(cb => cb.checked = false);
-    
-    // 清空授权选择
-    document.getElementById('export-authorization').checked = false;
     
     // 清空动态项容器
     document.getElementById('dynamic-declaration-items').innerHTML = '';
@@ -335,9 +435,10 @@ function getHSCodeConfig(hscode) {
         '0987654321': {
             items: [
                 { key: '材质', name: '材质', type: 'text', required: true },
-                { key: '功能', name: '功能', type: 'select', required: true 
-
-                },
+                { key: '功能', name: '功能', type: 'select', required: true, options: [
+                    { value: 'option1', label: '选项1' },
+                    { value: 'option2', label: '选项2' }
+                ]},
                 { key: '品牌名称', name: '品牌名称', type: 'text', required: true },
                 { key: '规格', name: '规格', type: 'text', required: true }
             ]
@@ -362,12 +463,9 @@ function populateDeclarationForm(declarationElements) {
     // 解析申报要素字符串
     const elements = parseDeclarationElements(declarationElements);
     
-    // 填充固定前两项
+    // 填充固定前一项
     if (elements.brandType !== undefined) {
         document.getElementById('brand-type').value = elements.brandType;
-    }
-    if (elements.preferentialStatus !== undefined) {
-        document.getElementById('preferential-status').value = elements.preferentialStatus;
     }
     
     // 填充动态项
@@ -395,7 +493,6 @@ function parseDeclarationElements(declarationElements) {
     const parts = declarationElements.split('|');
     const result = {
         brandType: parts[0] || '',
-        preferentialStatus: parts[1] || '',
         dynamicItems: {},
         gtin: '',
         cas: '',
@@ -403,7 +500,7 @@ function parseDeclarationElements(declarationElements) {
     };
     
     // 解析中间的动态项
-    for (let i = 2; i < parts.length; i++) {
+    for (let i = 1; i < parts.length; i++) {
         const part = parts[i];
         if (part && part.includes(':')) {
             const [key, value] = part.split(':', 2);
@@ -436,51 +533,81 @@ function addPreviewUpdateListeners() {
 
 // 更新申报要素预览
 function updateDeclarationPreview() {
-    const preview = document.getElementById('declaration-preview');
-    const elements = [];
-    
-    // 固定前两项（只显示数字编号）
-    const brandType = document.getElementById('brand-type').value;
-    const preferentialStatus = document.getElementById('preferential-status').value;
-    
-    elements.push(brandType || '');
-    elements.push(preferentialStatus || '');
-    
-    // 动态中间项（显示"名称:值"格式）
-    const dynamicContainer = document.getElementById('dynamic-declaration-items');
-    const dynamicInputs = dynamicContainer.querySelectorAll('input, select, textarea');
-    
-    dynamicInputs.forEach(input => {
-        const value = input.value.trim();
-        const name = input.name;
-        if (input.required || value) {
-            elements.push(value ? `${name}:${value}` : '');
+    try {
+        console.log('开始更新申报要素预览');
+        const preview = document.getElementById('declaration-preview');
+        if (!preview) {
+            console.error('找不到预览元素');
+            return;
         }
-    });
-    
-    // 固定后三项（非必填，有值才显示）
-    const gtin = document.getElementById('gtin').value.trim();
-    const cas = document.getElementById('cas').value.trim();
-    const other = document.getElementById('other-info').value.trim();
-    
-    if (gtin || cas || other) {
-        if (gtin) elements.push(`GTIN:${gtin}`);
-        if (cas) elements.push(`CAS:${cas}`);
-        if (other) elements.push(`其他:${other}`);
-    }
-    
-    // 拼接结果
-    let result = elements.join('|');
-    
-    // 清理末尾的空分隔符
-    result = result.replace(/\|+$/, '');
-    
-    if (result) {
-        preview.textContent = result;
-        preview.classList.remove('empty');
-    } else {
-        preview.textContent = '请填写申报要素信息';
-        preview.classList.add('empty');
+        
+        const elements = [];
+        
+        // 申报品中文名作为第一个要素
+        const declarationChineseNameElement = document.getElementById('declaration-chinese-name');
+        if (!declarationChineseNameElement) {
+            console.error('找不到申报品中文名元素');
+            return;
+        }
+        const declarationChineseName = declarationChineseNameElement.value;
+        elements.push(declarationChineseName || '');
+        console.log('申报品中文名:', declarationChineseName);
+        
+        // 品牌类型（只显示数字编号）
+        const brandTypeElement = document.getElementById('brand-type');
+        if (!brandTypeElement) {
+            console.error('找不到品牌类型元素');
+            return;
+        }
+        const brandType = brandTypeElement.value;
+        
+        elements.push(brandType || '');
+        console.log('品牌类型:', brandType);
+        
+        // 动态中间项（显示"名称:值"格式）
+        const dynamicContainer = document.getElementById('dynamic-declaration-items');
+        if (dynamicContainer) {
+            const dynamicInputs = dynamicContainer.querySelectorAll('input, select, textarea');
+            console.log('找到动态输入项:', dynamicInputs.length);
+            
+            dynamicInputs.forEach(input => {
+                const value = input.value.trim();
+                const name = input.name;
+                if (input.required || value) {
+                    elements.push(value ? `${name}:${value}` : '');
+                }
+                console.log('动态项:', name, '=', value);
+            });
+        }
+        
+        // 固定后三项（非必填，有值才显示）
+        const gtin = document.getElementById('gtin')?.value.trim() || '';
+        const cas = document.getElementById('cas')?.value.trim() || '';
+        const other = document.getElementById('other-info')?.value.trim() || '';
+        
+        if (gtin || cas || other) {
+            if (gtin) elements.push(`GTIN:${gtin}`);
+            if (cas) elements.push(`CAS:${cas}`);
+            if (other) elements.push(`其他:${other}`);
+        }
+        
+        // 拼接结果
+        let result = elements.join('|');
+        
+        // 清理末尾的空分隔符
+        result = result.replace(/\|+$/, '');
+        
+        if (result) {
+            preview.textContent = result;
+            preview.classList.remove('empty');
+        } else {
+            preview.textContent = '请填写申报要素信息';
+            preview.classList.add('empty');
+        }
+        
+        console.log('预览更新完成:', result);
+    } catch (error) {
+        console.error('更新预览时发生错误:', error);
     }
 }
 
@@ -488,15 +615,6 @@ function updateDeclarationPreview() {
 function saveDeclarationElements() {
     // 验证必填项
     if (!validateDeclarationForm()) {
-        return;
-    }
-    
-    // 验证目的国选择
-    const selectedCountries = Array.from(document.querySelectorAll('#destination-countries input:checked'))
-        .map(cb => cb.value);
-    
-    if (selectedCountries.length === 0) {
-        alert('请至少选择一个目的国');
         return;
     }
     
@@ -512,6 +630,8 @@ function saveDeclarationElements() {
     const itemIndex = currentData.findIndex(item => item.id === window.currentEditingItemId);
     if (itemIndex !== -1) {
         currentData[itemIndex].declarationElements = declarationElements;
+        // 如果重新编辑了申报要素，状态重置为未确认（需要重新确认）
+        currentData[itemIndex].declarationElementsStatus = 'unconfirmed';
         currentData[itemIndex].lastUpdater = 'current_user'; // 实际应用中应获取当前用户
         currentData[itemIndex].updateTime = new Date().toLocaleString('zh-CN');
     }
@@ -527,19 +647,21 @@ function saveDeclarationElements() {
 
 // 验证申报要素表单
 function validateDeclarationForm() {
+    // 检查申报品中文名必填项
+    const declarationChineseName = document.getElementById('declaration-chinese-name').value;
+    
+    if (!declarationChineseName.trim()) {
+        alert('请输入申报品中文名');
+        document.getElementById('declaration-chinese-name').focus();
+        return false;
+    }
+    
     // 检查必填的固定项
     const brandType = document.getElementById('brand-type').value;
-    const preferentialStatus = document.getElementById('preferential-status').value;
     
     if (!brandType) {
         alert('请选择品牌类型');
         document.getElementById('brand-type').focus();
-        return false;
-    }
-    
-    if (!preferentialStatus) {
-        alert('请选择享惠情况');
-        document.getElementById('preferential-status').focus();
         return false;
     }
     
@@ -611,6 +733,51 @@ function getStatusTag(status) {
     return `<span class="${className}">${status}</span>`;
 }
 
+// 获取订单状态标签HTML
+function getOrderStatusTag(status) {
+    let className = 'status-tag ';
+    switch (status) {
+        case '待发货':
+            className += 'status-pending';
+            break;
+        case '已发货':
+            className += 'status-reviewing';
+            break;
+        case '已签收':
+            className += 'status-confirmed';
+            break;
+        case '待确认':
+            className += 'status-pending';
+            break;
+        case '已完成':
+            className += 'status-confirmed';
+            break;
+        default:
+            className += 'status-pending';
+    }
+    return `<span class="${className}">${status}</span>`;
+}
+
+// 获取关务信息状态标签HTML
+function getDeclarationStatusTag(status) {
+    let className = 'status-tag ';
+    let statusText = '';
+    switch (status) {
+        case 'unconfirmed':
+            className += 'status-pending';
+            statusText = '未确认';
+            break;
+        case 'confirmed':
+            className += 'status-confirmed';
+            statusText = '已确认';
+            break;
+        default:
+            className += 'status-pending';
+            statusText = '未确认';
+    }
+    return `<span class="${className}">${statusText}</span>`;
+}
+
 // 初始化示例数据
 function initSampleData() {
     currentData = [
@@ -619,9 +786,12 @@ function initSampleData() {
             internationalSku: generateInternationalSku(1),
             domesticSku: generateDomesticSku(1),
             hscode: '1234567890',
+            orderId: generateOrderId(1),
+            orderStatus: '已确认',
             chineseTitle: '示例商品1',
             destinationCountry: '泰国',
             declarationElements: '-',
+            declarationElementsStatus: 'unconfirmed', // unconfirmed: 未确认, confirmed: 已确认
             chineseName: '中文申报品名1',
             englishName: 'Declaration Name 1',
             companyCode: generateCompanyCode(1),
@@ -633,20 +803,26 @@ function initSampleData() {
             contactPhone: '13800138001',
             weight: '0.5',
             brand: '示例品牌',
+            brandAuthType: '按项目授权（一单一议）',
             specification: '10*20cm',
+            extendAttr1: '扩展属性值1',
+            extendAttr2: '扩展属性值2',
             unit: '个',
-            assessmentStatus: '待评估',
             lastUpdater: 'lizimeng16',
-            updateTime: '2023-12-01 10:30:00'
+            updateTime: '2023-12-01 10:30:00',
+            createTime: '2023-11-28 09:15:00'
         },
         {
             id: 2,
             internationalSku: generateInternationalSku(2),
             domesticSku: generateDomesticSku(2),
             hscode: '0987654321',
+            orderId: generateOrderId(2),
+            orderStatus: '已批次发货',
             chineseTitle: '示例商品2',
             destinationCountry: '越南',
             declarationElements: '-',
+            declarationElementsStatus: 'unconfirmed', // unconfirmed: 未确认, confirmed: 已确认
             chineseName: '中文申报品名2',
             englishName: 'Declaration Name 2',
             companyCode: generateCompanyCode(2),
@@ -658,24 +834,31 @@ function initSampleData() {
             contactPhone: '13800138002',
             weight: '0.8',
             brand: '示例品牌2',
+            brandAuthType: '按时间授权(期间)',
             specification: '15*25cm',
+            extendAttr1: '扩展属性值A',
+            extendAttr2: '扩展属性值B',
             unit: '套',
-            assessmentStatus: '待确认',
             lastUpdater: 'system',
-            updateTime: '2023-12-01 11:15:00'
+            updateTime: '2023-12-01 11:15:00',
+            createTime: '2023-11-29 14:20:00'
         }
     ];
     
     // 生成更多示例数据
     for (let i = 3; i <= 25; i++) {
+        const brandAuthTypes = ['按项目授权（一单一议）', '按时间授权(期间)', '无需出口授权'];
         currentData.push({
             id: i,
             internationalSku: generateInternationalSku(i),
             domesticSku: generateDomesticSku(i),
             hscode: `${1000000000 + i}`,
+            orderId: generateOrderId(i),
+            orderStatus: ['已确认', '已批次发货', '已取消'][i % 3],
             chineseTitle: `示例商品${i}`,
             destinationCountry: ['泰国', '越南', '马来', '匈牙利', '巴西', '印尼', '香港'][i % 7],
             declarationElements: '-',
+            declarationElementsStatus: 'unconfirmed', // unconfirmed: 未确认, confirmed: 已确认
             chineseName: `中文申报品名${i}`,
             englishName: `Declaration Name ${i}`,
             companyCode: generateCompanyCode(i),
@@ -687,11 +870,15 @@ function initSampleData() {
             contactPhone: `138${String(i).padStart(8, '0')}`,
             weight: (Math.random() * 2 + 0.1).toFixed(2),
             brand: `示例品牌${i}`,
+            brandAuthType: brandAuthTypes[i % 3],
+            specification: `${10 + i}*${20 + i}cm`,
+            extendAttr1: `扩展属性1-${i}`,
+            extendAttr2: `扩展属性2-${i}`,
             specification: `${10 + i}*${20 + i}cm`,
             unit: ['个', '套', '件', '盒'][i % 4],
-            assessmentStatus: ['待评估', '待确认', '已确认'][i % 3],
             lastUpdater: `system`,
-            updateTime: `2023-12-${String((i % 28) + 1).padStart(2, '0')} ${String((i % 24)).padStart(2, '0')}:${String((i % 60)).padStart(2, '0')}:00`
+            updateTime: `2023-12-${String((i % 28) + 1).padStart(2, '0')} ${String((i % 24)).padStart(2, '0')}:${String((i % 60)).padStart(2, '0')}:00`,
+            createTime: `2023-11-${String((i % 28) + 1).padStart(2, '0')} ${String((i % 24)).padStart(2, '0')}:${String((i % 60)).padStart(2, '0')}:00`
         });
     }
     
@@ -713,7 +900,12 @@ function generateDomesticSku(index) {
     return `1${suffix}`;
 }
 
-// 生成18位社会统一信用代码
+// 生成订单ID（250开头的15位数字）
+function generateOrderId(index) {
+    // 250开头，后面12位数字，总共15位
+    const suffix = String(index).padStart(12, '0').slice(-12);
+    return `250${suffix}`;
+}
 function generateCompanyCode(index) {
     // 社会统一信用代码格式：18位，由数字和大写字母组成
     // 第1位：登记管理部门代码（1-9，A-Z，不含I、O、Z、S、V）
@@ -768,12 +960,12 @@ function loadGoodsData(searchParams = null) {
                 match = match && item.hscode.includes(searchParams.hscode.trim());
             }
             
-            if (searchParams.destinationCountry) {
-                match = match && item.destinationCountry === searchParams.destinationCountry;
+            if (searchParams.declarationStatus) {
+                match = match && item.declarationElementsStatus === searchParams.declarationStatus;
             }
             
-            if (searchParams.assessmentStatus) {
-                match = match && item.assessmentStatus === searchParams.assessmentStatus;
+            if (searchParams.orderStatus) {
+                match = match && item.orderStatus === searchParams.orderStatus;
             }
             
             if (searchParams.lastUpdater && searchParams.lastUpdater.trim()) {
@@ -805,20 +997,43 @@ function renderTable(data) {
     const tbody = document.getElementById('goods-tbody');
     
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="24" class="no-data">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="25" class="no-data">暂无数据</td></tr>';
         return;
     }
     
-    const rows = data.map(item => `
+    const rows = data.map(item => {
+        // 根据关务信息状态和申报要素决定按钮文本和功能
+        const hasDeclarationElements = item.declarationElements && item.declarationElements !== '-';
+        const isConfirmed = item.declarationElementsStatus === 'confirmed';
+        
+        let declarationButtonText, buttonFunction;
+        
+        if (isConfirmed) {
+            // 已确认状态，可以重新编辑
+            declarationButtonText = '编辑关务信息';
+            buttonFunction = 'editDeclarationElements';
+        } else if (hasDeclarationElements) {
+            // 有申报要素但未确认
+            declarationButtonText = '关务信息确认';
+            buttonFunction = 'confirmDeclarationElements';
+        } else {
+            // 没有申报要素
+            declarationButtonText = '编辑关务信息';
+            buttonFunction = 'editDeclarationElements';
+        }
+        
+        return `
         <tr>
             <td class="fixed-column">
                 <input type="checkbox" value="${item.id}">
             </td>
-            <td class="fixed-column">${item.internationalSku}</td>
-            <td>${item.domesticSku}</td>
+            <td class="fixed-column">${item.domesticSku}</td>
+            <td>${item.internationalSku}</td>
             <td>${item.hscode}</td>
+            <td>${item.orderId}</td>
+            <td>${getOrderStatusTag(item.orderStatus)}</td>
             <td>${item.chineseTitle}</td>
-            <td>${item.destinationCountry}</td>
+            <td>${getDeclarationStatusTag(item.declarationElementsStatus)}</td>
             <td>${item.declarationElements}</td>
             <td>${item.chineseName}</td>
             <td>${item.englishName}</td>
@@ -833,18 +1048,19 @@ function renderTable(data) {
             <td>${item.brand}</td>
             <td>${item.specification}</td>
             <td>${item.unit}</td>
-            <td>${getStatusTag(item.assessmentStatus)}</td>
             <td>${item.lastUpdater}</td>
             <td>${item.updateTime}</td>
+            <td>${item.createTime}</td>
             <td class="fixed-column-right">
                 <div class="action-links">
-                    <a href="javascript:void(0)" class="action-link" onclick="editDeclarationElements(${item.id})">编辑申报要素</a>
+                    <a href="javascript:void(0)" class="action-link" onclick="${buttonFunction}(${item.id})">${declarationButtonText}</a>
                     <a href="javascript:void(0)" class="action-link" onclick="editOtherInfo(${item.id})">编辑其他信息</a>
                     <a href="javascript:void(0)" class="action-link" onclick="viewDetails(${item.id})">详情</a>
                 </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
     
     tbody.innerHTML = rows;
     
